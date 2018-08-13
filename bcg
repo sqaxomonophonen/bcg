@@ -1,0 +1,6 @@
+#!/bin/sh
+# TODO determine proper python executable? (e.g. on arch, the default
+# /usr/bin/env python is python3 ... I can look for python3 in path, and use -V
+# (version) argument to check we're running a good Python... or maybe just make
+# bsgcmd.py compatabile with both py2 and py3 .. dunno
+python3 bcgcmd.py $*

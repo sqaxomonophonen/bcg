@@ -1,0 +1,36 @@
+Blender Constructive Geometry. A work-in-progress experiment to offer a
+workflow similar to OpenSCAD, but with general modelling being the focus rather
+than CAD.
+
+Why? Mostly because OpenSCAD is really slow,... by design: it does arbitary
+precision ("exact") calculations via CGAL, but in practice it's not that
+useful; compilation speed is more important, and it's not too hard to design
+robust CSG operations. Another minor reason is that it's hard to extract
+metadata from OpenSCAD; specifically I'd like to export the transform at
+various points, but it's not possible without resorting to some dirty hacks.
+
+DONE
+ - transforms
+ - boolean operations
+ - convex hull
+ - hi/lo poly passes
+ - debug pass
+
+TODO
+ - surface smoothing (Blender preserves smoothing information after boolean ops
+   and convex hull, so with a smooth cylinder you can cut a smooth hole)
+ - cylinder_segments() polyhedra constructor? I think it could be made generic
+   enough to support spheres, cylinders, torus, and custom stuff
+ - debug material for debug pass
+ - colored materials for previews?
+ - mesh preparation step for doing stuff like face culling, and adding seams
+ - UV-unwrap + baking from high-poly mesh (normals, ambient occlusion, ...)
+ - texture painting, probably by "splatting" bitmaps onto the mesh
+ - image generation; something like a 2D counterpart for creating images
+ - instancing pass; scene setup using built objects
+ - Godot scene export
+ - minkowski sum; convex for starters, non-convex via convex decomposition if I
+   feel really adventureous
+ - caching? some things should be trivial to cache; I can easily hash the node
+   trees from a build script
+
