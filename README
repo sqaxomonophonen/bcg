@@ -34,3 +34,6 @@ TODO
  - caching? some things should be trivial to cache; I can easily hash the node
    trees from a build script
 
+DEMO
+Try:
+ $ ./bcg preview test.py
