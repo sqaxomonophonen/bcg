@@ -1,27 +1,6 @@
 
 # TODO
-#  - objective is to:
-#     - setup BCG_* environment variables properly, so libbcg.py knows what to
-#       do
-#     - determine to what to run? typically a script needs to be executed with
-#       blender...
-#  - usage, like
-#      $ bcg <cmd> [args...]
-#  - commands, like:
-#      $ bcg init # creates a .bcgconfig file at cwd? probably just something like where your Godot project is located
-#      $ bcg makefile # outputs to stdout some Makefile statements to enable automatic dependency based builds?
-#      $ bcg new foo # creates foo.py, with a nice stub (maybe some options for what's in the stub)
-#      $ bcg preview foo # starts blender and shows your scene, possibly options for what to show (including debug volumes?)
-#      $ bcg build foo # does a build, maybe with options like "--quick" or "--full".. maybe figure out whether it's a blender or godot build?
-#      $ bcg cache clean/purge # yeah...
-
-# TODO distinct preview commands like:
-#        preview-lopoly: show low poly scene, don't do any other passes
-#        preview-hipoly: show high poly scene, don't do any other passes
-#        ...etc? I suppose we always run "prep" and "instance" for lopoly
-#        preview: full preview; does baking?
-# ??? and maybe with --debug flag? dunno... I'd rather just always display
-# debug stuff because you're using it during development
+#  commands like preview-lopoly, preview-hipoly, preview-full...
 
 import argparse
 import distutils.spawn

@@ -4,10 +4,9 @@ tx = lambda s: Translate(1*s,2*s,3*s) + Rotate(10+s, axis="X") + Translate(0,0,0
 
 clear()
 
-
 def stuff_cg():
 	fn = if_hipoly(512,32)
-	with Hull():
+	with tx(1) + Hull():
 		cylinder()
 		with Translate(0,3,0) + Translate(3,0,0): cylinder(fn=fn)
 	with Translate(-2,-2,0) + Difference():

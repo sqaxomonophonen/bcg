@@ -203,11 +203,13 @@ class Hull(_Group):
 		bpy.ops.object.mode_set(mode = 'OBJECT')
 		return obj
 
+# TODO .. at least convex minkowski sum should be easy... non-convex requires
+# decomposition into convex sub-polyhedra and then pairwise doing convex
+# minkowski sum on them
+"""
 class Minkowski(_Group):
-	# TODO .. at least convex minkowski sum should be easy... non-convex
-	# requires decomposition into convex sub-polyhedra and then pairwise
-	# doing convex minkowski sum on them
 	pass
+"""
 
 
 # TODO smoothing
