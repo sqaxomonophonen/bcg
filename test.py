@@ -17,7 +17,11 @@ def stuff_cg():
 		with Translate(0,0,1): sphere(r=0.5, fn=fn)
 	with Translate(3,-4,0) + Difference():
 		cylinder()
-		with Translate(0,0,1): sphere(r=0.5, fn=fn)
-mkobj("Stuff", cg=stuff_cg)
+		with Translate(0,0,1): cube(center=True)
+
+def stuff_prep():
+	pass # TODO
+
+mkobj("Stuff", cg=stuff_cg, prep=stuff_prep)
 
 save_blend("test")

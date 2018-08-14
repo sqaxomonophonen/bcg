@@ -227,6 +227,51 @@ class polyhedron(object):
 		bpy.context.scene.objects.link(obj)
 		return obj
 
+def cube(sx=1.0, sy=1.0, sz=1.0, center=False):
+	dx=0.0;dy=0.0;dz=0.0
+	if center:
+		dx=-sx/2.0
+		dy=-sy/2.0
+		dz=-sz/2.0
+
+	vertices = []
+	for z in range(2):
+		for y in range(2):
+			for x in range(2):
+				vertices.append((
+					x*sx+dx,
+					y*sy+dy,
+					z*sz+dz))
+	# vertices are now indexed by an xyz bit pattern e.g. for x+y-z- it's
+	# 001 (1), and x-y+z+ is 110 (6), etc
+
+	faces = []
+	for normal_axis in range(3):
+		for sign in [0,1]:
+			face=[] # ...
+			# face normals must always point away from the cube
+			# center. and blender is right handed, so...
+			#     finger0 x finger1 = finger2
+			# meaning if finger0 and finger1 are edges in a
+			# polygon, then its winding must be clockwise when seen
+			# from front
+			#   x+: y+z- -> y-z- -> y-z+ -> y+z+
+			#   y+: z+x- -> z-x- -> z-x+ -> z+x+
+			#   z+: x+y- -> x-y- -> x-y+ -> x+y+ -> ...
+			# so the pattern is:
+			#   00110011001100110 for (axis+1)%3
+			#   01100110011001100 for (axis+2)%3
+			# played from left to right for normal-positive faces
+			# and from right to left for normal-negative faces
+			# so:
+			faces.append([
+				  (sign << normal_axis)
+				+ ((( i   >> 1) & 1) << ((normal_axis+1)%3))
+				+ ((((i+3)>> 1) & 1) << ((normal_axis+2)%3))
+				for i in [range(4,0,-1), range(4)][sign]
+			])
+	polyhedron(vertices, faces, name="cube")
+
 # TODO sphere and cylinder can be generalized as cylinder_segments() that takes
 # z/r-pairs + fn (and it would be useful for other stuff)
 
