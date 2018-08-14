@@ -35,4 +35,4 @@ TODO
 
 DEMO
 Try:
- $ ./bcg preview test.py
+ $ ./bcg preview examples/test.py
