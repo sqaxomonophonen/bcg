@@ -366,7 +366,7 @@ def mkobj(name, cg=None, prep=None, paint=None, instance=None, godot_export=None
 
 			if is_debug: pname += ".Debug"
 
-			with _Timer("PASS cg for %s (debug=%s)" % (pname, is_debug)):
+			with _Timer("PASS cg for %s" % pname):
 				_cg = _CG(pname)
 				cg()
 				obj = _cg.construct()
