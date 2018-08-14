@@ -271,62 +271,84 @@ def cube(sx=1.0, sy=1.0, sz=1.0, center=False):
 			])
 	polyhedron(vertices, faces, name="cube")
 
-# TODO sphere and cylinder can be generalized as cylinder_segments() that takes
-# z/r-pairs + fn (and it would be useful for other stuff)
+def cylinder_segments(segments, loop=False, fn=32):
+	assert(len(segments)>=2)
+
+	vertices = []
+	seginfo = []
+	for z,r in segments:
+		seginfo.append((len(vertices), r==0))
+		if r != 0:
+			for i in range(fn):
+				phi = (i/float(fn)) * 2 * math.pi
+				x = r * math.cos(phi)
+				y = r * math.sin(phi)
+				vertices.append((x,y,z))
+		else:
+			vertices.append((0,0,z))
+
+	faces = []
+	n = len(segments)
+	ns = n-1
+	if loop: ns += 1
+	for i0 in range(ns):
+		i0 = i0%n
+		i1 = (i0+1)%n
+		s0offset, s0singular = seginfo[i0]
+		s1offset, s1singular = seginfo[i1]
+		if s0singular and s1singular: continue # segment would be a line; don't render it
+
+		for j in range(fn):
+			j0 = j % fn
+			j1 = (j0+1) % fn
+			face = []
+			if s0singular:
+				face.append(s0offset)
+			else:
+				face.append(s0offset + j0)
+				face.append(s0offset + j1)
+			if s1singular:
+				face.append(s1offset)
+			else:
+				face.append(s1offset + j1)
+				face.append(s1offset + j0)
+			faces.append(face)
+
+	if not loop:
+		if not seginfo[0][1]: faces.append([i + seginfo[0][0] for i in range(fn-1,-1,-1)])
+		if not seginfo[-1][1]: faces.append([i + seginfo[-1][0] for i in range(fn)])
+
+	polyhedron(vertices, faces, name="cylinder_segments")
 
 
 def sphere(r=1.0, fs=20, fn=32):
-	vertices = []
+	segments = []
+	for i in range(fs+1):
+		if i == 0:
+			segments.append((-r,0))
+		elif i == fs:
+			segments.append((r,0))
+		else:
+			phi = math.pi * (i/float(fs))
+			z = r * -math.cos(phi)
+			rs = r * math.sin(phi)
+			segments.append((z,rs))
+	cylinder_segments(segments=segments, fn=fn)
 
-	vertices.append((0,0,r))
-	vertices.append((0,0,-r))
-	for i in range(1,fs):
-		pho = math.pi * (i/float(fs))
-		z = r * math.cos(pho)
-		r2 = r * math.sin(pho)
-		for j in range(fn):
-			phi = (j/float(fn)) * 2 * math.pi
-			x = r2 * math.cos(phi)
-			y = r2 * math.sin(phi)
-			vertices.append((x,y,z))
+def cylinder(r1=1.0, r2=1.0, h=1.0, fn=32, r=None):
+	if r is not None:
+		r1 = r
+		r2 = r
+	cylinder_segments(segments = [(0,r1), (h,r2)], fn=fn)
 
-	gv = lambda i,j: 2 + (j%fn) + i*fn
-	faces = []
+def torus(r1=1.0, r2=0.2, fs=20, fn=32):
+	segments = []
 	for i in range(fs):
-		for j in range(fn):
-			if i == 0:
-				faces.append([0,gv(i,j),gv(i,j+1)])
-			elif i == fs-1:
-				faces.append([1,gv(i-1,j+1),gv(i-1,j)])
-			else:
-				faces.append([
-					gv(i-1,j),
-					gv(i,j),
-					gv(i,j+1),
-					gv(i-1,j+1),
-				])
-
-	polyhedron(vertices, faces, name="sphere")
-
-def cylinder(r=1.0, h=1.0, fn=32):
-	vertices = []
-	for i in range(fn):
-		phi = (i/float(fn)) * 2 * math.pi
-		x = r * math.cos(phi)
-		y = r * math.sin(phi)
-		vertices.append((x,y,0))
-		vertices.append((x,y,h))
-
-	faces = []
-	for i in range(fn):
-		v0 = i * 2
-		v1 = ((i+1) % fn) * 2
-		faces.append([v0,v1,v1+1,v0+1])
-	faces.append([x for x in range(1,fn*2,2)])
-	faces.append([x for x in range(fn*2-2,0,-2)])
-
-	polyhedron(vertices, faces, name="cylinder")
-
+		phi = 2.0*math.pi * (i/float(fs))
+		z = r2 * math.sin(phi)
+		rs = r1 + r2 * math.cos(phi)
+		segments.append((z,rs))
+	cylinder_segments(segments=segments, loop=True, fn=fn)
 
 # returns True if this is a high polygon pass, otherwise False
 def hipoly():
