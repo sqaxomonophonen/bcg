@@ -169,15 +169,19 @@ class Translate(_Transform):
 		return Matrix.Translation(self.tv)
 
 class Rotate(_Transform):
-	def __init__(self, a=0, axis="Z"):
-		self.angle = a
+	def __init__(self, deg=0, axis="Z", rad=None):
+		# TODO special case when (deg%90) == 0
+		if rad is not None:
+			self.rad = rad
+		else:
+			self.rad = (deg/180.0) * math.pi
 		if isinstance(axis, tuple) or isinstance(axis, list):
 			self.axis = Vector(axis)
 		self.axis = axis
-		self.name = "Rotate(%f,%s)" % (a, axis)
+		self.name = "Rotate(rad=%f,axis=%s)" % (self.rad, axis)
 
 	def _tx(self):
-		return Matrix.Rotation(self.angle, 4, self.axis)
+		return Matrix.Rotation(self.rad, 4, self.axis)
 
 class Union(_Boolean):
 	_op = "UNION"
