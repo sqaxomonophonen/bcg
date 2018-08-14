@@ -4,21 +4,37 @@
 
 import argparse
 import distutils.spawn
-import sys
-import os
+import sys,os,stat
 
 def fatal(msg):
 	sys.stderr.write(msg + "\n")
 	sys.exit(1)
 
-def run_blender(bcgscript, background = False):
-	# TODO alternative ways of locating blender:
-	#  -  BCG_BLENDER_PATH environment variable to override everything
-	#  -  look in /Application/... on macOS?
-	blender_path = distutils.spawn.find_executable("blender")
-	if blender_path is None:fatal("blender not found in PATH")
+def get_blender_path():
+	def is_executable(path):
+		if not path: return False
+		m = os.stat(path)[stat.ST_MODE]
+		return not stat.S_ISDIR(m) and bool((m&stat.S_IXUSR) or (m&stat.S_IXGRP) or (m&stat.S_IXOTH))
 
-	argv = ["-noaudio"]
+	path = os.getenv("BCG_BLENDER")
+	if is_executable(path): return path
+
+	path = distutils.spawn.find_executable("blender")
+	if is_executable(path): return path
+
+	if sys.platform == "darwin":
+		# look for blender in standard MacOS location
+		for app in ["blender.app", "Blender.app"]:
+			path = "/Applications/%s/Contents/MacOS/blender" % app
+			if is_executable(path): return path
+
+	fatal("blender not found (search order: BCG_BLENDER environment variable, then 'blender' in $PATH, then platform specific stuff)")
+
+
+def run_blender(bcgscript, background = False):
+	blender_path = get_blender_path()
+
+	argv = [blender_path, "-noaudio"]
 	if background: argv += ["-b"]
 	argv += ["-P", bcgscript]
 	env = {
