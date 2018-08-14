@@ -248,7 +248,6 @@ def cube(sx=1.0, sy=1.0, sz=1.0, center=False):
 	faces = []
 	for normal_axis in range(3):
 		for sign in [0,1]:
-			face=[] # ...
 			# face normals must always point away from the cube
 			# center. and blender is right handed, so...
 			#     finger0 x finger1 = finger2
