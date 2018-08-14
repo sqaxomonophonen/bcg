@@ -266,9 +266,9 @@ def cube(sx=1.0, sy=1.0, sz=1.0, center=False):
 			# so:
 			faces.append([
 				  (sign << normal_axis)
-				+ ((( i   >> 1) & 1) << ((normal_axis+1)%3))
-				+ ((((i+3)>> 1) & 1) << ((normal_axis+2)%3))
-				for i in [range(4,0,-1), range(4)][sign]
+				+ ((((i+sign*2) >> 1) & 1) << ((normal_axis+1)%3))
+				+ ((((i+1)      >> 1) & 1) << ((normal_axis+2)%3))
+				for i in range(4)
 			])
 	polyhedron(vertices, faces, name="cube")
 
