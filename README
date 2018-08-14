@@ -10,6 +10,7 @@ metadata from OpenSCAD; specifically I'd like to export the transform at
 various points, but it's not possible without resorting to some dirty hacks.
 
 DONE
+ - primitives: cube, sphere, cylinder, torus, polyhedron
  - transforms
  - boolean operations
  - convex hull
@@ -19,8 +20,6 @@ DONE
 TODO
  - surface smoothing (Blender preserves smoothing information after boolean ops
    and convex hull, so with a smooth cylinder you can cut a smooth hole)
- - cylinder_segments() polyhedra constructor? I think it could be made generic
-   enough to support spheres, cylinders, torus, and custom stuff
  - debug material for debug pass
  - colored materials for previews?
  - mesh preparation step for doing stuff like face culling, and adding seams
