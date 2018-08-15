@@ -2,12 +2,28 @@ import bpy
 from mathutils import Vector, Matrix
 import math
 import time
+import os
+import json
 
 bpy.context.user_preferences.view.show_splash = False # don't show splash
 
 _cg = None
 _is_hipoly = None
-_is_debug_pass = None
+
+_args = json.loads(os.getenv("BCG_ARGS"))
+
+def _isincos(x, n):
+	x = int(x)
+	n = int(n)
+	x4 = x*4
+	if (x4 % n) == 0:
+		isin = lambda i: [0,1,0,-1][i%4]
+		icos = lambda i: isin(i+1)
+		idx = int(x4/n)
+		return (isin(idx), icos(idx))
+	else:
+		phi = (x/float(n)) * 2.0 * math.pi
+		return (math.sin(phi), math.cos(phi))
 
 class _Timer(object):
 	def __init__(self, msg):
@@ -19,6 +35,39 @@ class _Timer(object):
 	def __exit__(self,a,b,c):
 		dt = time.time() - self.t0
 		print("%s (took %.2f s)" % (self.msg, dt))
+
+def _join(objs = []):
+	nobjs = []
+	for obj in objs:
+		if obj is None:
+			continue
+		elif len(obj.data.vertices) == 0:
+			bpy.data.objects.remove(obj)
+		else:
+			nobjs.append(obj)
+	objs = nobjs
+
+	if len(objs) == 0:
+		mesh = bpy.data.meshes.new(name="join")
+		mesh.from_pydata([], [], [])
+		obj = bpy.data.objects.new("dummy", mesh)
+		bpy.context.scene.objects.link(obj)
+		return obj
+	if len(objs) == 1:
+		return objs[0]
+	ctx = bpy.context.copy()
+	ctx['active_object'] = objs[0]
+	ctx['selected_objects'] = objs
+	ctx['selected_editable_bases'] = [bpy.context.scene.object_bases[obj.name] for obj in objs]
+	bpy.ops.object.join(ctx)
+	return objs[0]
+
+def _dupe(src_obj, name = None):
+	dst_obj = src_obj.copy()
+	dst_obj.data = src_obj.data.copy()
+	if name is not None: dst_obj.name = name
+	bpy.context.scene.objects.link(dst_obj)
+	return dst_obj
 
 class _CG(object):
 	def __init__(self, name):
@@ -38,20 +87,26 @@ class _CG(object):
 	def emit(self, o):
 		self.stack[-1].append(o)
 
-	def construct(self):
-		def crec(ns, vis):
-			results = []
+	def construct(self, debug = False):
+		def crec(ns):
+			objs = []
+			debug_objs = []
 			for n in ns:
 				if type(n) is tuple:
-					pvis = vis
+					robjs, rdebug_objs = crec(n[1])
+					obj = n[0].render(robjs)
+					objs.append(obj)
+					debug_objs += [n[0].debug_render(o) for o in rdebug_objs]
 					if isinstance(n[0], Debug):
-						pvis = True
-					results.append(n[0].render(crec(n[1], pvis)))
-				elif vis:
-					results.append(n.render())
-			return results
-		vis = not _is_debug_pass
-		obj = _join(crec(self.optree, vis))
+						dname = self.name + ".Debug"
+						if n[0].tag is not None:
+							dname += "." + n[0].tag
+						debug_objs.append(_dupe(obj, name = dname))
+				else:
+					objs.append(n.render())
+			return (objs, debug_objs)
+		objs, debug_objs = crec(self.optree)
+		obj = _join(objs)
 		obj.name = self.name
 		#obj.color = [1,0,0,0.2] # TODO useful for debugging, but requires an "object color material"
 		return obj
@@ -90,30 +145,6 @@ class _Pair(object):
 		return _Pair(self, other)
 
 
-def _join(objs = []):
-	nobjs = []
-	for obj in objs:
-		if len(obj.data.vertices) == 0:
-			bpy.data.objects.remove(obj)
-		else:
-			nobjs.append(obj)
-	objs = nobjs
-
-	if len(objs) == 0:
-		mesh = bpy.data.meshes.new(name="join")
-		mesh.from_pydata([], [], [])
-		obj = bpy.data.objects.new("dummy", mesh)
-		bpy.context.scene.objects.link(obj)
-		return obj
-	if len(objs) == 1:
-		return objs[0]
-	ctx = bpy.context.copy()
-	ctx['active_object'] = objs[0]
-	ctx['selected_objects'] = objs
-	ctx['selected_editable_bases'] = [bpy.context.scene.object_bases[obj.name] for obj in objs]
-	bpy.ops.object.join(ctx)
-	return objs[0]
-
 class _Group(object):
 	def __enter__(self):
 		global _cg
@@ -130,18 +161,21 @@ class _Group(object):
 	def render(self, args):
 		return _join(args)
 
+	def debug_render(self, obj):
+		return obj
+
 
 class _Transform(_Group):
 	def render(self, args):
-		tx = self._tx()
 		for obj in args:
-			obj.matrix_world = tx * obj.matrix_world
+			obj.matrix_world = self._tx * obj.matrix_world
 		return _join(args)
+
+	def debug_render(self, obj):
+		return self.render([obj])
 
 class _Boolean(_Group):
 	def render(self, args):
-		global _is_debug_pass
-		if _is_debug_pass: return _join(args)
 		if len(args) <= 1: return _join(args)
 		a = args[0]
 		b = _join(args[1:])
@@ -158,30 +192,54 @@ class Group(_Group):
 	pass
 
 class Debug(_Group):
-	pass # XXX TODO should render subtree in separate object regardless of parent nodes
+	def __init__(self, tag=None):
+		self.tag = tag
 
 class Translate(_Transform):
 	def __init__(self, x=0, y=0, z=0):
 		self.tv = Vector((x,y,z))
 		self.name = "Translate(%f,%f,%f)" % (x,y,z)
-
-	def _tx(self):
-		return Matrix.Translation(self.tv)
+		self._tx = Matrix.Translation(self.tv)
 
 class Rotate(_Transform):
 	def __init__(self, deg=0, axis="Z", rad=None):
-		# TODO special case when (deg%90) == 0
+		if isinstance(axis, tuple) or isinstance(axis, list):
+			axis = Vector(axis)
+		self.axis = axis
 		if rad is not None:
 			self.rad = rad
+		elif (deg%90) == 0 and axis in ["X","Y","Z"]:
+			s, c = _isincos(deg, 360)
+			if axis == "X":
+				self._tx = Matrix((
+					(  1,  0,  0,  0),
+					(  0,  c, -s,  0),
+					(  0,  s,  c,  0),
+					(  0,  0,  0,  1)
+				))
+			elif axis == "Y":
+				self._tx = Matrix((
+					(  c,  0,  s,  0),
+					(  0,  1,  0,  0),
+					( -s,  0,  c,  0),
+					(  0,  0,  0,  1)
+				))
+			elif axis == "Z":
+				self._tx = Matrix((
+					(  c, -s,  0,  0),
+					(  s,  c,  0,  0),
+					(  0,  0,  1,  0),
+					(  0,  0,  0,  1)
+				))
+			else:
+				raise RuntimeError("unexpected axis value %s" % axis)
+			self.rad = (deg/180.0) * math.pi
 		else:
 			self.rad = (deg/180.0) * math.pi
-		if isinstance(axis, tuple) or isinstance(axis, list):
-			self.axis = Vector(axis)
-		self.axis = axis
+			self._tx = Matrix.Rotation(self.rad, 4, self.axis)
+
 		self.name = "Rotate(rad=%f,axis=%s)" % (self.rad, axis)
 
-	def _tx(self):
-		return Matrix.Rotation(self.rad, 4, self.axis)
 
 class Union(_Boolean):
 	_op = "UNION"
@@ -198,8 +256,6 @@ class Intersection(_Boolean):
 class Hull(_Group):
 	name = "Hull"
 	def render(self, args):
-		global _is_debug_pass
-		if _is_debug_pass: return _join(args)
 		obj = _join(args)
 		bpy.context.scene.objects.active = obj
 		bpy.ops.object.mode_set(mode = 'EDIT')
@@ -284,9 +340,9 @@ def cylinder_segments(segments, loop=False, fn=32):
 		seginfo.append((len(vertices), r==0))
 		if r != 0:
 			for i in range(fn):
-				phi = (i/float(fn)) * 2 * math.pi
-				x = r * math.cos(phi)
-				y = r * math.sin(phi)
+				s, c = _isincos(i, fn)
+				x = r * c
+				y = r * s
 				vertices.append((x,y,z))
 		else:
 			vertices.append((0,0,z))
@@ -333,9 +389,9 @@ def sphere(r=1.0, fs=20, fn=32):
 		elif i == fs:
 			segments.append((r,0))
 		else:
-			phi = math.pi * (i/float(fs))
-			z = r * -math.cos(phi)
-			rs = r * math.sin(phi)
+			s, c = _isincos(i, fs*2)
+			z = r * -c
+			rs = r * s
 			segments.append((z,rs))
 	cylinder_segments(segments=segments, fn=fn)
 
@@ -348,9 +404,9 @@ def cylinder(r1=1.0, r2=1.0, h=1.0, fn=32, r=None):
 def torus(r1=1.0, r2=0.2, fs=20, fn=32):
 	segments = []
 	for i in range(fs):
-		phi = 2.0*math.pi * (i/float(fs))
-		z = r2 * math.sin(phi)
-		rs = r1 + r2 * math.cos(phi)
+		s, c = _isincos(i, fs)
+		z = r2 * s
+		rs = r1 + r2 * c
 		segments.append((z,rs))
 	cylinder_segments(segments=segments, loop=True, fn=fn)
 
@@ -378,30 +434,22 @@ def mkobj(name, cg=None, prep=None, paint=None, instance=None, godot_export=None
 	global _cg
 
 	# TODO quick preview for either of these? i.e. only render one of them
-	passes = [(False, name+".Lo"), (True, name+".Hi")]
+	passes = [(False, name+".Lo")]
+	if "preview" not in _args:
+		passes += [(True, name+".Hi")]
 
-	objs = []
-	for is_debug in [False, True]:
-		for hi, pname in passes:
-			global _is_hipoly
-			_is_hipoly = hi
+	for hi, pname in passes:
+		global _is_hipoly
+		_is_hipoly = hi
+		with _Timer("PASS cg for %s" % pname):
+			_cg = _CG(pname)
+			cg()
+			obj = _cg.construct()
+			if len(obj.data.vertices) == 0:
+				bpy.data.objects.remove(obj)
 
-			global _is_debug_pass
-			_is_debug_pass = is_debug
-
-			if is_debug: pname += ".Debug"
-
-			with _Timer("PASS cg for %s" % pname):
-				_cg = _CG(pname)
-				cg()
-				obj = _cg.construct()
-				if len(obj.data.vertices) == 0:
-					bpy.data.objects.remove(obj)
-				objs.append(obj)
-
-			_cg = None
-			_is_hipoly = None
-			_is_debug_pass = None
+		_cg = None
+		_is_hipoly = None
 
 def clear():
 	for bo in bpy.data.objects:
