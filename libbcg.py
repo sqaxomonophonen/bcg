@@ -175,6 +175,10 @@ class _Transform(_Group):
 		return self.render([obj])
 
 class _Boolean(_Group):
+	# solver can be 'CARVE' or 'BMESH'
+	def __init__(self, solver='CARVE'):
+		self.solver = solver
+
 	def render(self, args):
 		if len(args) <= 1: return _join(args)
 		a = args[0]
@@ -182,6 +186,7 @@ class _Boolean(_Group):
 		bop = a.modifiers.new(type="BOOLEAN", name="bool")
 		bop.object = b
 		bop.operation = self._op
+		bop.solver = self.solver
 		bpy.context.scene.objects.active = a
 		bpy.ops.object.modifier_apply(apply_as='DATA', modifier='bool')
 		bpy.data.objects.remove(b)

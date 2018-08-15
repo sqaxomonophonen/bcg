@@ -35,12 +35,11 @@ def panel_outline():
 				cylinder(r = corner_radius, h = depth*3, fn = corner_segments)
 
 	with Difference():
-		with Debug(tag = "cub"): cube(side,side,depth)
-		with Debug(tag = "cut"):
-			corner_cut()
-			with Translate(side,0,0)    + Rotate(90,  axis="Z"): corner_cut()
-			with Translate(0,side,0)    + Rotate(-90, axis="Z"): corner_cut()
-			with Translate(side,side,0) + Rotate(180, axis="Z"): corner_cut()
+		cube(side,side,depth)
+		corner_cut()
+		with Translate(side,0,0)    + Rotate(90,  axis="Z"): corner_cut()
+		with Translate(0,side,0)    + Rotate(-90, axis="Z"): corner_cut()
+		with Translate(side,side,0) + Rotate(180, axis="Z"): corner_cut()
 
 def screen_cut():
 	pass # TODO
