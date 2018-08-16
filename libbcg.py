@@ -409,25 +409,25 @@ def cylinder_segments(segments, loop=False, fn=32):
 
 	polyhedron(vertices, faces, name="cylinder_segments")
 
-def n_hull(v,r,ctor):
+def n_hull(v,ctor):
 	sz = len(v)
 	n = 2**sz
 	with Hull():
 		for i in range(n):
-			dx = r
-			dy = r
-			dz = r
-			if i&1: dx = v[0]-r
-			if i&2: dy = v[1]-r
-			if i&4: dz = v[2]-r
+			dx = 0
+			dy = 0
+			dz = 0
+			if i&1: dx = v[0]
+			if i&2: dy = v[1]
+			if i&4: dz = v[2]
 			with Translate(dx,dy,dz):
 				ctor()
 
-def square_hull(sx,sy,r,ctor):
-	n_hull((sx,sy),r,ctor)
+def square_hull(sx,sy,ctor):
+	n_hull((sx,sy),ctor)
 
-def cube_hull(sx,sy,sz,r,ctor):
-	n_hull((sx,sy,sz),r,ctor)
+def cube_hull(sx,sy,sz,ctor):
+	n_hull((sx,sy,sz),ctor)
 
 # decomposes into convex cylinder segments (useful e.g. if you want a convex
 # hull of each convex group)

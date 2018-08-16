@@ -29,14 +29,12 @@ def round_square(sx,sy,sz,r1,r2,fn):
 	r = max(r1,r2)
 	def ctor():
 		cylinder(r1=r1,r2=r2,h=sz,fn=fn)
-	square_hull(sx,sy,r,ctor)
+	with Translate(r,r): square_hull(sx-r*2,sy-r*2,ctor)
 
 def round_cut(sx,sy,r,fn):
 	def ctor():
 		sphere(r=r,fn=fn)
-	square_hull(sx,sy,r,ctor)
-
-
+	with Translate(r,r): square_hull(sx-r*2,sy-r*2,ctor)
 
 def panel_outline():
 	with Translate(z=-screen_depth):
@@ -45,7 +43,7 @@ def panel_outline():
 def screen_cut():
 	r = max(screen_r1,screen_r2)
 	m = margin+r
-	s = side - m*2
+	s = side - m*2 - r*2
 	segs = [
 		(screen_r2,-depth*2),
 		(screen_r2,0),
@@ -54,12 +52,30 @@ def screen_cut():
 	]
 	with Translate(m,m):
 		for segments in decompose_cylinder_segments(segs):
-			square_hull(s,s,r,lambda:cylinder_segments(segments,fn=screen_segments))
+			square_hull(s,s,lambda:cylinder_segments(segments,fn=screen_segments))
 
 
 
 def button_holes():
-	pass # TODO
+	def button_hole(sx=None, sy=None):
+		if sx is None: sx = button_size
+		if sy is None: sy = button_size
+		with Translate(-sx/2.0, -sy/2.0):
+			segs = [
+				(button_bevel_r2, -depth),
+				(button_bevel_r2, screen_depth - button_bevel_depth),
+				(button_bevel_r1, screen_depth),
+				(button_bevel_r1, screen_depth + depth),
+			]
+			for segments in decompose_cylinder_segments(segs):
+				square_hull(sx,sy,lambda:cylinder_segments(segments,fn=screen_segments))
+
+	for i in range(n_buttons_per_side):
+		d = side / 2.0 + (i - n_buttons_per_side/2.0 + 0.5) * button_spacing
+		with Translate(d,margin/2.0): button_hole()
+		#with Translate(d,side-margin/2.0): button_hole()
+		with Translate(margin/2.0,d): button_hole()
+		with Translate(side-margin/2.0,d): button_hole()
 
 def corner_indent():
 	pass # TODO
@@ -71,7 +87,7 @@ def mfd_cg():
 	with Translate(-side/2,-side/2) + Union():
 		with Difference():
 			panel_outline()
-			with Debug(): screen_cut()
+			screen_cut()
 			button_holes()
 			corner_indent()
 		button_spacers()
