@@ -12,6 +12,27 @@ _is_hipoly = None
 
 _args = json.loads(os.getenv("BCG_ARGS"))
 
+def v2normal(v):
+	return (v[1], -v[0])
+
+def vadd(v0,v1):
+	r = []
+	for i in range(len(v0)):
+		r.append(v0[i]+v1[i])
+	return r
+
+def vsub(v0,v1):
+	r = []
+	for i in range(len(v0)):
+		r.append(v0[i]-v1[i])
+	return r
+
+def vdot(v0,v1):
+	z = 0
+	for i in range(len(v0)):
+		z += v0[i]*v1[i]
+	return z
+
 def _isincos(x, n):
 	x = int(x)
 	n = int(n)
@@ -336,12 +357,15 @@ def cube(sx=1.0, sy=1.0, sz=1.0, center=False):
 			])
 	polyhedron(vertices, faces, name="cube")
 
+# segments is an array of (r,z) pairs (radius,z-position)
+# if loop is True, the last segment will be connected to the first segment
+# decompose_index can be used to extract 
 def cylinder_segments(segments, loop=False, fn=32):
 	assert(len(segments)>=2)
 
 	vertices = []
 	seginfo = []
-	for z,r in segments:
+	for r,z in segments:
 		seginfo.append((len(vertices), r==0))
 		if r != 0:
 			for i in range(fn):
@@ -385,26 +409,87 @@ def cylinder_segments(segments, loop=False, fn=32):
 
 	polyhedron(vertices, faces, name="cylinder_segments")
 
+def n_hull(v,r,ctor):
+	sz = len(v)
+	n = 2**sz
+	with Hull():
+		for i in range(n):
+			dx = r
+			dy = r
+			dz = r
+			if i&1: dx = v[0]-r
+			if i&2: dy = v[1]-r
+			if i&4: dz = v[2]-r
+			with Translate(dx,dy,dz):
+				ctor()
+
+def square_hull(sx,sy,r,ctor):
+	n_hull((sx,sy),r,ctor)
+
+def cube_hull(sx,sy,sz,r,ctor):
+	n_hull((sx,sy,sz),r,ctor)
+
+# decomposes into convex cylinder segments (useful e.g. if you want a convex
+# hull of each convex group)
+def decompose_cylinder_segments(segments, epsilon=1.0/16.0):
+	groups = []
+	group = []
+	prev_point = None
+	prev_vec = None
+	for r,z in segments:
+		point = (r,z)
+		if prev_point is not None:
+			vec = vsub(point, prev_point)
+			dr,dz = vec
+			veps = (0,epsilon)
+			if dz < 0:
+				raise RuntimeError("dz must be zero or positive")
+			elif dz == 0:
+				if len(group) >= 2:
+					group.append(vadd(point,veps))
+					groups.append(group)
+					group = []
+				else:
+					group = []
+			elif prev_vec is not None:
+				cross = vdot(v2normal(vec), prev_vec)
+				if cross < 0:
+					if dr >= 0:
+						group += [vadd(prev_point,veps)]
+						groups.append(group)
+						group = [prev_point]
+					else:
+						groups.append(group)
+						group = [vsub(prev_point,veps),prev_point]
+				prev_cross = cross
+
+			prev_vec = vec
+		group.append(point)
+		prev_point = (r,z)
+	if len(group) > 0: groups.append(group)
+
+	return groups
+
 
 def sphere(r=1.0, fs=20, fn=32):
 	segments = []
 	for i in range(fs+1):
 		if i == 0:
-			segments.append((-r,0))
+			segments.append((0,-r))
 		elif i == fs:
-			segments.append((r,0))
+			segments.append((0,r))
 		else:
 			s, c = _isincos(i, fs*2)
 			z = r * -c
 			rs = r * s
-			segments.append((z,rs))
+			segments.append((rs,z))
 	cylinder_segments(segments=segments, fn=fn)
 
 def cylinder(r1=1.0, r2=1.0, h=1.0, fn=32, r=None):
 	if r is not None:
 		r1 = r
 		r2 = r
-	cylinder_segments(segments = [(0,r1), (h,r2)], fn=fn)
+	cylinder_segments(segments = [(r1,0), (r2,h)], fn=fn)
 
 def torus(r1=1.0, r2=0.2, fs=20, fn=32):
 	segments = []
@@ -412,7 +497,7 @@ def torus(r1=1.0, r2=0.2, fs=20, fn=32):
 		s, c = _isincos(i, fs)
 		z = r2 * s
 		rs = r1 + r2 * c
-		segments.append((z,rs))
+		segments.append((rs,z))
 	cylinder_segments(segments=segments, loop=True, fn=fn)
 
 # returns True if this is a high polygon pass, otherwise False
