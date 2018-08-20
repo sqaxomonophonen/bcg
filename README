@@ -1,3 +1,12 @@
+ABANDONED: Blender isn't robust enough to construct entire objects from lots
+of boolean operations; at some point it just starts refusing to execute the
+operation and fails with an error.
+
+
+
+
+Old README:
+
 Blender Constructive Geometry. A work-in-progress experiment to offer a
 workflow similar to OpenSCAD, but with general modelling being the focus rather
 than CAD.
